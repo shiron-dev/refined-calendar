@@ -1,11 +1,13 @@
 {
   "name": "vite-project",
-  "private": true,
   "type": "module",
+  "private": true,
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
@@ -18,10 +20,12 @@
   },
   "devDependencies": {
     "@react-router/dev": "^7.5.1",
+    "@shiron-dev/eslint-config": "^2.1.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^20",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.1",
+    "eslint-plugin-format": "^1.0.1",
     "react-router-devtools": "^1.1.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
