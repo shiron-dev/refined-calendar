@@ -1,0 +1,67 @@
+.main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 4rem;
+  padding-bottom: 1rem;
+}
+
+.container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rem;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.25rem;
+}
+
+.logoWrapper {
+  width: 500px;
+  max-width: 100vw;
+  padding: 1rem;
+}
+
+.logoLight {
+  display: block;
+  width: 100%;
+}
+
+.logoDark {
+  display: none;
+  width: 100%;
+}
+
+.navWrapper {
+  max-width: 300px;
+  width: 100%;
+  padding: 1rem;
+  gap: 1.5rem;
+}
+
+.nav {
+  border-radius: 1.5rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
+  gap: 1rem;
+}
+
+.navText {
+  text-align: center;
+  color: #4b5563;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  color: #1d4ed8;
+  text-decoration: underline;
+}
