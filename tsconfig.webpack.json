@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "jsx": "react",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "module": "esnext",
+    "target": "es5",
+    "moduleResolution": "node",
+    "isolatedModules": false
+  },
+  "include": [
+    "src/content_scripts/**/*.ts",
+    "src/content_scripts/**/*.tsx",
+    "src/backgrounds/**/*.ts",
+    "src/components/screenshot/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/pages"
+  ]
+}

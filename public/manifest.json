@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Google Calendar Event Copier",
+  "version": "1.0",
+  "description": "Copy Google Calendar event details to clipboard in a specific format",
+  "permissions": ["clipboardWrite", "activeTab"],
+  "host_permissions": ["https://calendar.google.com/*"],
+  "background": {
+    "service_worker": "backgrounds_background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://calendar.google.com/*"],
+      "js": ["content_scripts_main.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "action": {
+    "default_title": "Google Calendar Event Copier"
+  }
+}
