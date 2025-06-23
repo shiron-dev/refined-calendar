@@ -22,47 +22,54 @@ function formatDateTime(startDate: Date, endDate: Date): string {
 // Function to copy event details to clipboard
 function copyEventDetails(): void {
   try {
-    // Get event title - try multiple selectors as Google Calendar's DOM structure might vary
+    // Get event title
     let title = "";
-    const titleSelectors = [
-      "[data-tooltip=\"Title\"]",
-      ".rq9Vt",
-      ".YAAWbe",
-      ".zHQkBf",
-    ];
-
-    for (const selector of titleSelectors) {
-      const element = document.querySelector(selector);
-      if (element && element.textContent) {
-        title = element.textContent.trim();
-        break;
-      }
-    }
-
-    // If still not found, try to find by role
-    if (!title) {
-      const headingElements = document.querySelectorAll("[role=\"heading\"]");
-      for (const element of headingElements) {
-        if (element.textContent) {
-          title = element.textContent.trim();
-          break;
-        }
+    // The event details are inside a dialog box
+    const dialog = document.querySelector('div[role="dialog"]');
+    if (dialog) {
+      // The title is a heading inside the dialog.
+      // Using role="heading" and aria-level="1" is more robust than using generated class names.
+      const titleElement = dialog.querySelector(
+        '[role="heading"][aria-level="1"]',
+      );
+      if (titleElement?.textContent) {
+        title = titleElement.textContent.trim();
       }
     }
 
     // Get event location - try multiple approaches
     let location = "";
-    const locationSelectors = [
-      "[data-tooltip=\"Location\"]",
-      ".Jmftzc.gVNoLb.EiZ8Dd",
-      ".Jmftzc.gVNoLb.LKeQwe",
-    ];
+    const locationIconPath =
+      "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 2.88-2.88 7.19-5 9.88C9.92 16.21 7 11.85 7 9z";
+    const locationIcon = document.querySelector(`path[d="${locationIconPath}"]`);
+    if (locationIcon) {
+      const locationContainer = locationIcon.closest(".nBzcnc");
+      if (locationContainer) {
+        const locationLink = locationContainer.querySelector("a");
+        if (locationLink) {
+          location = locationLink.href;
+        } else {
+          const locationTextEl = locationContainer.querySelector(".toUqff");
+          if (locationTextEl?.textContent) {
+            location = locationTextEl.textContent.replace(/^場所: ?/, "").trim();
+          }
+        }
+      }
+    }
 
-    for (const selector of locationSelectors) {
-      const element = document.querySelector(selector);
-      if (element && element.textContent) {
-        location = element.textContent.trim();
-        break;
+    if (!location) {
+      const locationSelectors = [
+        "[data-tooltip=\"Location\"]",
+        ".Jmftzc.gVNoLb.EiZ8Dd",
+        ".Jmftzc.gVNoLb.LKeQwe",
+      ];
+
+      for (const selector of locationSelectors) {
+        const element = document.querySelector(selector);
+        if (element && element.textContent) {
+          location = element.textContent.trim();
+          break;
+        }
       }
     }
 
@@ -73,112 +80,128 @@ function copyEventDetails(): void {
     let startDate: Date | null = null;
     let endDate: Date | null = null;
 
-    // Try to extract dates from Google Calendar's data attributes first
-    try {
-      // Google Calendar often stores event data in data attributes or in the DOM
-      // Look for elements with time data
-      const timeElements = document.querySelectorAll("[data-start-time], [data-end-time], [data-datestart], [data-dateend]");
+    // Try to extract date and time from the event dialog
+    if (dialog) {
+      // Look for the time information in the dialog
+      const whenElement = dialog.querySelector("#xDetDlgWhen");
+      if (whenElement?.textContent) {
+        const timeText = whenElement.textContent.trim();
 
-      for (const element of timeElements) {
-        const startTimeAttr = element.getAttribute("data-start-time") || element.getAttribute("data-datestart");
-        const endTimeAttr = element.getAttribute("data-end-time") || element.getAttribute("data-dateend");
+        try {
+          // Format: "6月 23日 (月曜日)⋅午後10:00～10:30" or "June 23 (Monday) ⋅ 10:00 PM – 10:30 PM"
+          const dateRegex =
+            /(?:(\d+)月\s*(\d+)日)|(?:(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d+))/;
+          const dateMatch = timeText.match(dateRegex);
 
-        if (startTimeAttr && endTimeAttr) {
-          startDate = new Date(startTimeAttr);
-          endDate = new Date(endTimeAttr);
+          const timeRegex =
+            /(午前|午後|AM|PM)?\s*(\d{1,2}):(\d{2})\s*[～–-]\s*(午前|午後|AM|PM)?\s*(\d{1,2}):(\d{2})/;
+          const timeMatch = timeText.match(timeRegex);
 
-          if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
-            break;
-          }
-        }
-      }
-    }
-    catch (e) {
-      console.error("Error extracting dates from data attributes:", e);
-    }
+          if (dateMatch && timeMatch) {
+            const monthMap: { [key: string]: number } = {
+              January: 0,
+              February: 1,
+              March: 2,
+              April: 3,
+              May: 4,
+              June: 5,
+              July: 6,
+              August: 7,
+              September: 8,
+              October: 9,
+              November: 10,
+              December: 11,
+            };
 
-    // If data attributes didn't work, try to get dates from the page content
-    if (!startDate || !endDate || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      // Try to get dates from the page
-      const dateTimeSelectors = [
-        "[data-tooltip=\"Time\"]",
-        ".SLD4me",
-        ".QGRmIf",
-        ".hVDHke", // Another possible time container
-        ".ynRLnc", // Another possible time container
-      ];
+            let month: number;
+            let day: number;
 
-      // Try to extract date information from various elements
-      for (const selector of dateTimeSelectors) {
-        const elements = document.querySelectorAll(selector);
-        for (const element of elements) {
-          if (element && element.textContent) {
-            const dateTimeText = element.textContent.trim();
-
-            try {
-              // Check if there's a date in the URL (common in Google Calendar URLs)
-              const urlParams = new URLSearchParams(window.location.search);
-              let dateParam = urlParams.get("date");
-
-              // If no date in URL, try to find it in the event ID
-              if (!dateParam) {
-                const eventIdParam = urlParams.get("eid");
-                if (eventIdParam) {
-                  // Sometimes event IDs contain date information
-                  const dateMatch = eventIdParam.match(/(\d{4})(\d{2})(\d{2})/);
-                  if (dateMatch) {
-                    dateParam = dateMatch[0];
-                  }
-                }
-              }
-
-              if (dateParam) {
-                // URL date format is typically YYYYMMDD
-                const year = Number.parseInt(dateParam.substring(0, 4));
-                const month = Number.parseInt(dateParam.substring(4, 6)) - 1; // JS months are 0-indexed
-                const day = Number.parseInt(dateParam.substring(6, 8));
-
-                // Look for time in the element text - handle various formats
-                // Format: 3:30 – 4:30pm or 15:30 – 16:30 or 3:30pm – 4:30pm
-                const timeMatch = dateTimeText.match(/(\d{1,2}):(\d{2})(?:am|pm)?\s*[–~\-]\s*(\d{1,2}):(\d{2})(?:am|pm)?/i);
-
-                if (timeMatch) {
-                  let startHour = Number.parseInt(timeMatch[1]);
-                  const startMinute = Number.parseInt(timeMatch[2]);
-                  let endHour = Number.parseInt(timeMatch[3]);
-                  const endMinute = Number.parseInt(timeMatch[4]);
-
-                  // Check for AM/PM indicators
-                  if (dateTimeText.toLowerCase().includes("pm") && startHour < 12) {
-                    startHour += 12;
-                  }
-                  if (dateTimeText.toLowerCase().includes("pm") && endHour < 12) {
-                    endHour += 12;
-                  }
-
-                  startDate = new Date(year, month, day, startHour, startMinute);
-                  endDate = new Date(year, month, day, endHour, endMinute);
-
-                  if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
-                    break;
-                  }
-                }
-              }
+            if (dateMatch[1] && dateMatch[2]) {
+              // Japanese format: 6月 23日
+              month = parseInt(dateMatch[1], 10) - 1;
+              day = parseInt(dateMatch[2], 10);
+            } else if (dateMatch[3] && dateMatch[4]) {
+              // English format: June 23
+              month = monthMap[dateMatch[3]];
+              day = parseInt(dateMatch[4], 10);
+            } else {
+              // Should not happen if dateMatch is successful, but as a safeguard
+              throw new Error(`Could not parse date from: ${timeText}`);
             }
-            catch (e) {
-              console.error("Error parsing date from text:", e);
+            // Assume the current year. This might be wrong for events in a different year.
+            const year = new Date().getFullYear();
+
+            const [
+              ,
+              startAmPm,
+              startHourStr,
+              startMinuteStr,
+              endAmPm,
+              endHourStr,
+              endMinuteStr,
+            ] = timeMatch;
+
+            let startHour = parseInt(startHourStr, 10);
+            let endHour = parseInt(endHourStr, 10);
+
+            if (
+              (startAmPm === "午後" || startAmPm?.toUpperCase() === "PM") &&
+              startHour < 12
+            ) {
+              startHour += 12;
+            } else if (
+              (startAmPm === "午前" || startAmPm?.toUpperCase() === "AM") &&
+              startHour === 12
+            ) {
+              // 12 AM is 00:00
+              startHour = 0;
+            }
+
+            if (
+              (endAmPm === "午後" || endAmPm?.toUpperCase() === "PM") &&
+              endHour < 12
+            ) {
+              endHour += 12;
+            } else if (
+              (endAmPm === "午前" || endAmPm?.toUpperCase() === "AM") &&
+              endHour === 12
+            ) {
+              // 12 AM is 00:00
+              // This logic assumes end time is on the same day.
+              // For ranges like 10:00 PM - 12:30 AM, this needs more complex logic for date change.
+              endHour = 0;
+            } else if (
+              !endAmPm &&
+              (startAmPm === "午後" || startAmPm?.toUpperCase() === "PM") &&
+              endHour < startHour
+            ) {
+              // Handle cases like "午後10:00～11:00" where end doesn't have PM.
+              endHour += 12;
+            }
+
+            const startMinute = parseInt(startMinuteStr, 10);
+            const endMinute = parseInt(endMinuteStr, 10);
+
+            startDate = new Date(year, month, day, startHour, startMinute);
+            endDate = new Date(year, month, day, endHour, endMinute);
+
+            if (endDate < startDate) {
+              endDate.setDate(endDate.getDate() + 1);
             }
           }
-        }
-
-        if (startDate && endDate && !Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
-          break;
+        } catch (e) {
+          console.error("Error parsing date from dialog text:", e);
         }
       }
     }
 
     // If we still couldn't extract the date/time, use current time as fallback
-    if (!startDate || !endDate || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    if (
+      !startDate ||
+      !endDate ||
+      Number.isNaN(startDate.getTime()) ||
+      Number.isNaN(endDate.getTime())
+    ) {
       const now = new Date();
       startDate = now;
       endDate = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour later as fallback
@@ -187,14 +210,22 @@ function copyEventDetails(): void {
     // Format the date and time
     const formattedDateTime = formatDateTime(startDate, endDate);
 
-    // Format the text to copy exactly as requested
-    const textToCopy = `件名: ${title || ""}
-場所: ${location || ""}
-カレンダーURL: ${calendarUrl}
-日時: ${formattedDateTime}`;
+    // Format the text to copy, excluding empty fields
+    const details = [];
+    if (title) {
+      details.push(`件名: ${title}`);
+    }
+    if (location) {
+      details.push(`場所: ${location}`);
+    }
+    details.push(`カレンダーURL: ${calendarUrl}`);
+    details.push(`日時: ${formattedDateTime}`);
+
+    const textToCopy = details.join("\n");
 
     // Copy to clipboard
-    navigator.clipboard.writeText(textToCopy)
+    navigator.clipboard
+      .writeText(textToCopy)
       .then(() => {
         // Show success message
         const message = document.createElement("div");
@@ -219,83 +250,67 @@ function copyEventDetails(): void {
       .catch((err) => {
         console.error("Failed to copy text: ", err);
       });
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error copying event details:", error);
   }
 }
 
 // Function to create and inject the copy button
 function injectCopyButton(): void {
-  // Check if we're on an event page or popup by looking for various indicators
-  const isEventPage
-    = document.querySelector("[data-tooltip=\"Title\"]") !== null
-      || document.querySelector(".YAAWbe") !== null
-      || document.querySelector(".zHQkBf") !== null
-      || document.querySelector("[role=\"dialog\"]") !== null
-      || document.querySelector("[role=\"presentation\"] [role=\"button\"][aria-label*=\"Edit\"]") !== null
-      || document.querySelector("[role=\"presentation\"] [role=\"button\"][aria-label*=\"Delete\"]") !== null
-    // Look for event details elements
-      || (document.querySelector("[data-tooltip=\"Time\"]") !== null
-        && document.querySelector("[data-tooltip=\"Location\"]") !== null);
-
-  if (!isEventPage)
+  const dialog = document.querySelector('div[role="dialog"]');
+  if (!dialog) {
     return;
+  }
 
   // Check if button already exists
-  if (document.getElementById("gcal-event-copy-btn"))
+  if (document.getElementById("gcal-event-copy-btn")) {
     return;
+  }
 
-  // Create the button
+  const editIconPath =
+    "M20.41 4.94l-1.35-1.35c-.78-.78-2.05-.78-2.83 0L3 16.82V21h4.18L20.41 7.77c.79-.78.79-2.05 0-2.83zm-14 14.12L5 19v-1.36l9.82-9.82 1.41 1.41-9.82 9.83z";
+  const editIcon = dialog.querySelector(`path[d="${editIconPath}"]`);
+  if (!editIcon) {
+    return;
+  }
+
+  const editButton = editIcon.closest("button");
+  if (!editButton) {
+    return;
+  }
+
   const copyButton = document.createElement("button");
   copyButton.id = "gcal-event-copy-btn";
-  copyButton.textContent = "予定をコピー";
-  copyButton.style.backgroundColor = "#1a73e8";
-  copyButton.style.color = "white";
-  copyButton.style.border = "none";
-  copyButton.style.padding = "8px 12px";
-  copyButton.style.borderRadius = "4px";
-  copyButton.style.cursor = "pointer";
-  copyButton.style.marginRight = "8px";
-  copyButton.style.fontFamily = "inherit";
-  copyButton.style.fontSize = "14px";
-  copyButton.style.fontWeight = "500";
-  copyButton.style.alignItems = "center";
+  copyButton.className = editButton.className;
+  copyButton.setAttribute("aria-label", "Copy event details");
+  copyButton.setAttribute("data-use-native-focus-logic", "true");
 
-  // Add hover effect
-  copyButton.addEventListener("mouseover", () => {
-    copyButton.style.backgroundColor = "#1765cc";
+  copyButton.innerHTML = `<span class="OiePBf-zPjgPe pYTkkf-Bz112c-UHGRz"></span><span class="RBHQF-ksKsZd"></span><span jsname="S5tZuc" aria-hidden="true" class="pYTkkf-Bz112c-kBDsod-Rtc0Jf"><span class="notranslate VfPpkd-kBDsod" aria-hidden="true"><svg focusable="false" width="20" height="20" viewBox="0 0 24 24" class="NMm5M"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg></span></span><div class="pYTkkf-Bz112c-RLmnJb"></div>`;
+
+  copyButton.addEventListener("mouseenter", () => {
+    copyButton.style.backgroundColor = "rgba(60, 64, 67, 0.08)";
+  });
+  copyButton.addEventListener("mouseleave", () => {
+    copyButton.style.backgroundColor = "transparent";
   });
 
-  copyButton.addEventListener("mouseout", () => {
-    copyButton.style.backgroundColor = "#1a73e8";
+  copyButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    copyEventDetails();
   });
 
-  // Add click event
-  copyButton.addEventListener("click", copyEventDetails);
+  const wrapper = document.createElement("div");
+  const editButtonContainer =
+    editButton.parentElement?.parentElement?.parentElement;
 
-  // Try to inject the button in a robust way, preferring aria-labels
-  const moreActionsButton = document.querySelector('[aria-label="More actions"]');
-  if (moreActionsButton?.parentNode) {
-    moreActionsButton.parentNode.insertBefore(copyButton, moreActionsButton);
-  } else {
-    // Fallback to other known buttons
-    const editButton = document.querySelector('[aria-label*="Edit"]');
-    if (editButton?.parentNode) {
-      editButton.parentNode.insertBefore(copyButton, editButton);
-    } else {
-      // Fallback to the (less reliable) class name selector
-      const buttonContainer = document.querySelector(".T2Ybvb");
-      if (buttonContainer) {
-        buttonContainer.prepend(copyButton);
-      } else {
-        // Last resort: find a toolbar in a dialog
-        const dialogToolbar = document.querySelector('[role="dialog"] [role="toolbar"]');
-        if (dialogToolbar) {
-          dialogToolbar.prepend(copyButton);
-        }
-      }
-    }
+  if (editButtonContainer?.parentElement) {
+    // Insert the new button wrapper next to the edit button's wrapper.
+    editButtonContainer.parentElement.insertBefore(
+      wrapper,
+      editButtonContainer.nextSibling,
+    );
+    wrapper.appendChild(copyButton);
   }
 }
 
