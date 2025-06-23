@@ -1,0 +1,26 @@
+.copyButton {
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s ease;
+}
+
+.copyButton:hover {
+  background-color: #1765cc;
+}
+
+.copyButtonSuccess {
+  background-color: #34d399;
+}
+
+.copyButtonSuccess:hover {
+  background-color: #10b981;
+}

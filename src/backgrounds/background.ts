@@ -2,5 +2,5 @@
 // This script will handle any background tasks if needed
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('Google Calendar Event Copier extension installed');
+  // Extension installed
 });
